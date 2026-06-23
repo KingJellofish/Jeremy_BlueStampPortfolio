@@ -1,5 +1,5 @@
 # Elbow Rehabilitation Device
-Replace this text with a brief description (2-3 sentences) of your project. This description should draw the reader in and make them interested in what you've built. You can include what the biggest challenges, takeaways, and triumphs from completing the project were. As you complete your portfolio, remember your audience is less familiar than you are with all that your project entails!
+My project is a wearable arm device that aims to assist people experiencing joint pain in the elbow. It has two sections that rotate about the joint in the elbow. The wearer will have some kind of strap on their back to reduce load on the arm. Driven by a high power mechanism, this device hopefully minimizes the pain experienced in the elbow for certain people.
 
 You should comment out all portions of your portfolio that you have not completed yet, as well as any instructions:
 ```HTML 
