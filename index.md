@@ -1,5 +1,5 @@
-# Elbow Rehabilitation Device
-My project is a wearable arm device that aims to assist people experiencing joint pain in the elbow. It has two sections that rotate about the joint in the elbow. The wearer will have some kind of strap on their back to reduce load on the arm. Driven by a high power mechanism, this device hopefully minimizes the pain experienced in the elbow for certain people.
+# Hexapod
+My project is a six-legged contraption that uses servos to move around. The legs have multiple joints using a total of 18 servos. In the future, it will have a camera/ultrasonic sensor, a speaker, and an LED display for facial expressions, as well as the ability to remotely control it.
 
 You should comment out all portions of your portfolio that you have not completed yet, as well as any instructions:
 ```HTML 
@@ -15,9 +15,7 @@ You should comment out all portions of your portfolio that you have not complete
   
 # Final Milestone
 
-**Don't forget to replace the text below with the embedding for your milestone video. Go to Youtube, click Share -> Embed, and copy and paste the code to replace what's below.**
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/F7M7imOVGug" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/AjJmskXgcbA?si=TMgxeei5rKUD7gwA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 For your final milestone, explain the outcome of your project. Key details to include are:
 - What you've accomplished since your previous milestone
