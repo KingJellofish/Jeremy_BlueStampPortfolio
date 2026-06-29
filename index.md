@@ -58,15 +58,68 @@ Here's where you'll put your code. The syntax below places it into a block of co
 -->
 
 ```c++
+#ifndef ARDUINO_AVR_MEGA2560
+#error Wrong board. Please choose "Arduino/Genuino Mega or Mega 2560"
+#endif
+
+#include <Servo.h>
+
+Servo base1;
+Servo base2;
+Servo base3;
+Servo base4;
+Servo base5;
+Servo base6;
+
+Servo shoulder1;
+Servo shoulder2;
+Servo shoulder3;
+Servo shoulder4;
+Servo shoulder5;
+Servo shoulder6;
+
+Servo elbow1;
+Servo elbow2;
+Servo elbow3;
+Servo elbow4;
+Servo elbow5;
+Servo elbow6;
+
+const int servoPowerEnableGroup1 = A15;
+const int servoPowerEnableGroup2 = A14;
+
+int timer = 0;
+bool front = true;
+
+int mapAngleUs(int value, int lowerBoundUs, int upperBoundUs, int angleMax) {
+    long num = (long)(upperBoundUs - lowerBoundUs) * value;
+    int us = lowerBoundUs + (int)((num + 45) / angleMax);
+    return us;
+}
+
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
-  Serial.println("Hello World!");
+    pinMode(servoPowerEnableGroup1, OUTPUT);
+    digitalWrite(servoPowerEnableGroup1, HIGH);
+    pinMode(servoPowerEnableGroup2, OUTPUT);
+    digitalWrite(servoPowerEnableGroup2, HIGH);
+    //pinMode(LED_BUILTIN, OUTPUT);
+    base1.attach(22);
+    base2.attach(25);
+    base3.attach(28);
+    base4.attach(39);
+    base5.attach(36);
+    base6.attach(33);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
+    base1.writeMicroseconds(mapAngleUs(55, 1400, 2400, 80));
+    base2.writeMicroseconds(mapAngleUs(13, 600, 1600, 56));
+    base3.writeMicroseconds(mapAngleUs(40, 600, 1300, 56));
+    base4.writeMicroseconds(mapAngleUs(25, 1000, 2000, 80));
+    base5.writeMicroseconds(mapAngleUs(37, 1000, 2000, 80));
+    base6.writeMicroseconds(mapAngleUs(15, 1200, 2200, 80));
+    delay(50);
+    //digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 }
 ```
 
