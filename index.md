@@ -61,266 +61,129 @@ Here's where you'll put your code. The syntax below places it into a block of co
 #endif
 
 #include <Servo.h>
+#include <math.h>
 
-Servo base1;
-Servo base2;
-Servo base3;
-Servo base4;
-Servo base5;
-Servo base6;
-
-Servo shoulder1;
-Servo shoulder2;
-Servo shoulder3;
-Servo shoulder4;
-Servo shoulder5;
-Servo shoulder6;
-
-Servo elbow1;
-Servo elbow2;
-Servo elbow3;
-Servo elbow4;
-Servo elbow5;
-Servo elbow6;
+Servo base[7];
+Servo shoulder[7];
+Servo elbow[7];
 
 const int servoPowerEnableGroup1 = A15;
 const int servoPowerEnableGroup2 = A14;
 
-int timer = 0;
-bool front = true;
+const int base_pins[7] = {0, 22, 25, 28, 39, 36, 33};
+const int shoulder_pins[7] = {0, 23, 26, 29, 38, 35, 32};
+const int elbow_pins[7] = {0, 24, 27, 30, 37, 34, 31};
 
-int mapAngleUs(int value, int lowerBoundUs, int upperBoundUs, int angleMax) {
-    long num = (long)(upperBoundUs - lowerBoundUs) * value;
-    int us = lowerBoundUs + (int)((num + 45) / angleMax);
-    return us;
+const int group1[3] = {1, 3, 5};
+const int group2[3] = {2, 4, 6};
+
+const int legMountAngle[7] = {0, 34, 6, -25, 147, 176, -150};
+const int base_sign[7] = {0, 1, 1, 1, -1, -1, -1};
+
+const int base_angle_us = 1500;
+const int base_swing_us = 200;
+const int shoulder_angle_us = 1500;
+const int shoulder_swing_us = 200;
+const int elbow_angle_us = 1500;
+const int elbow_swing_us = 200;
+
+const int step_delay_ms = 100;
+
+float direction = 0.0;
+float spin = 0.0;
+float speed = 0.0;
+
+int findClosestAngle(int mountAngle, int targetAngle) {
+    return mountAngle + ((targetAngle - mountAngle) > 180 ? 360 : 0);
 }
 
-void walkForward() {
-    // *** first trio ***
+float strideProjection(int legIndex, float direction, float spin) {
+    int theta = radians(direction);
+    int mount = radians(findClosestAngle(legMountAngle[legIndex], (int) direction));
 
-    // shoulders up (and reset other shoulders)
-    shoulder2.writeMicroseconds(1500);
-    shoulder4.writeMicroseconds(1500);
-    shoulder6.writeMicroseconds(1500);
+    // unit vector for direction of travel
+    float dx = cos(theta);
+    float dy = sin(theta);
 
-    shoulder1.writeMicroseconds(1300);
-    shoulder3.writeMicroseconds(1300);
-    shoulder5.writeMicroseconds(1700);
-    delay(200);
+    // tangent unit vector to leg pivot
+    float tx = -sin(mount);
+    float ty = cos(mount);
 
-    // rotate forward
-    base1.writeMicroseconds(1300);
-    base3.writeMicroseconds(1300);
-    base5.writeMicroseconds(1700);
-    delay(200);
+    // dot product to project tangent vector onto stride vector
+    float displacement_deci = dx * tx + dy * ty;
 
-    // shoulders down
-    shoulder1.writeMicroseconds(1700);
-    shoulder3.writeMicroseconds(1700);
-    shoulder5.writeMicroseconds(1300);
-    delay(200);
-
-    // rotate backward
-    base1.writeMicroseconds(1500);
-    base3.writeMicroseconds(1500);
-    base5.writeMicroseconds(1500);
-    delay(200);
-
-    // *** second trio ***
-
-    // shoulders up (and reset other shoulders)
-    shoulder1.writeMicroseconds(1500);
-    shoulder3.writeMicroseconds(1500);
-    shoulder5.writeMicroseconds(1500);
-
-    shoulder2.writeMicroseconds(1300);
-    shoulder4.writeMicroseconds(1700);
-    shoulder6.writeMicroseconds(1700);
-    delay(200);
-
-    // rotate forward
-    base2.writeMicroseconds(1300);
-    base4.writeMicroseconds(1700);
-    base6.writeMicroseconds(1700);
-    delay(200);
-
-    // shoulders down
-    shoulder2.writeMicroseconds(1700);
-    shoulder4.writeMicroseconds(1300);
-    shoulder6.writeMicroseconds(1300);
-    delay(200);
-
-    // rotate backward
-    base2.writeMicroseconds(1500);
-    base4.writeMicroseconds(1500);
-    base6.writeMicroseconds(1500);
-    delay(200);
+    // add optional spin for turning while walking
+    return displacement_deci + spin;
 }
 
-void crabWalkForward() {
-    shoulder2.writeMicroseconds(544);
-    shoulder5.writeMicroseconds(2400);
-    elbow2.writeMicroseconds(2100);
-    elbow5.writeMicroseconds(844);
-    // *** first duo ***
-
-    // shoulders up (and reset other shoulders)
-    shoulder3.writeMicroseconds(1500);
-    shoulder4.writeMicroseconds(1500);
-
-    shoulder1.writeMicroseconds(1300);
-    shoulder6.writeMicroseconds(1700);
-    delay(200);
-
-    // rotate forward
-    base1.writeMicroseconds(1300);
-    base6.writeMicroseconds(1700);
-    delay(200);
-
-    // shoulders down
-    shoulder1.writeMicroseconds(1700);
-    shoulder6.writeMicroseconds(1300);
-    delay(200);
-
-    // rotate backward
-    base1.writeMicroseconds(1500);
-    base6.writeMicroseconds(1500);
-    delay(200);
-
-    // *** second duo ***
-
-    // shoulders up (and reset other shoulders)
-    shoulder1.writeMicroseconds(1500);
-    shoulder6.writeMicroseconds(1500);
-
-    shoulder3.writeMicroseconds(1300);
-    shoulder4.writeMicroseconds(1700);
-    delay(200);
-
-    // rotate forward
-    base3.writeMicroseconds(1300);
-    base4.writeMicroseconds(1700);
-    delay(200);
-
-    // shoulders down
-    shoulder3.writeMicroseconds(1700);
-    shoulder4.writeMicroseconds(1300);
-    delay(200);
-
-    // rotate backward
-    base3.writeMicroseconds(1500);
-    base4.writeMicroseconds(1500);
-    delay(200);
+void commandBase(int legIndex, float normalizedProjection) {
+    normalizedProjection = constrain(normalizedProjection, -1.5, 1.5); // to allow for spin
+    int us = base_angle_us + (int) (base_sign[legIndex] * normalizedProjection * base_swing_us);
+    base[legIndex].writeMicroseconds(us);
 }
 
-void wave() {
-    base1.writeMicroseconds(1500);
-    base2.writeMicroseconds(1500);
-    base3.writeMicroseconds(1500);
-    base4.writeMicroseconds(1500);
-    base5.writeMicroseconds(1500);
-    base6.writeMicroseconds(1500);
-
-    shoulder1.writeMicroseconds(1500);
-    shoulder3.writeMicroseconds(1500);
-    shoulder4.writeMicroseconds(1500);
-    shoulder6.writeMicroseconds(1500);
-
-    elbow1.writeMicroseconds(1500);
-    elbow3.writeMicroseconds(1500);
-    elbow4.writeMicroseconds(1500);
-    elbow6.writeMicroseconds(1500);
-
-    shoulder2.writeMicroseconds(544);
-    shoulder5.writeMicroseconds(2400);
-
-    // back
-    elbow2.writeMicroseconds(2400);
-    elbow5.writeMicroseconds(544);
-    delay(200);
-    
-    // and forth
-    elbow2.writeMicroseconds(2000);
-    elbow5.writeMicroseconds(944);
-    delay(200);
+void commandShoulder(int legIndex, float normalizedProjection) {
+    normalizedProjection = constrain(normalizedProjection, -1.0, 1.0);
+    int us = shoulder_angle_us + (int) (normalizedProjection * shoulder_swing_us);
+    shoulder[legIndex].writeMicroseconds(us);
+}
+/*
+void commandElbow(int legIndex, float normalizedProjection) {
+    normalizedProjection = constrain(normalizedProjection, -1.0, 1.0);
+    int us = elbow_angle_us + (int) (normalizedProjection * elbow_swing_us);
+    elbow[legIndex].writeMicroseconds(us);
+}
+*/
+void commandElbow(int legIndex) {
+    elbow[legIndex].writeMicroseconds(elbow_angle_us);
 }
 
-void strafeRight() {
-    // *** first trio ***
+void homeAll() {
+    for (int i = 1; i <= 6; i++) {
+        base[i].writeMicroseconds(base_angle_us);
+        shoulder[i].writeMicroseconds(shoulder_angle_us);
+        elbow[i].writeMicroseconds(elbow_angle_us);
+    }
+}
 
-    // shoulders up (and reset elbows and other shoulders)
-    elbow1.writeMicroseconds(1500);
-    elbow3.writeMicroseconds(1500);
-    elbow5.writeMicroseconds(1500);
+void walkDirection(float direction, float spin, float speed) {
+    const int* liftGroup;
+    const int* standGroup;
 
-    shoulder2.writeMicroseconds(1500);
-    shoulder4.writeMicroseconds(1500);
-    shoulder6.writeMicroseconds(1500);
+    for (int group = 0; group < 2; group++) {
+        liftGroup = (group == 0) ? group1 : group2;
+        standGroup = (group == 0) ? group2 : group1;
 
-    shoulder1.writeMicroseconds(1300);
-    shoulder3.writeMicroseconds(1300);
-    shoulder5.writeMicroseconds(1700);
-    delay(200);
+        // reset previous group (no delay)
+        for (int i = 0; i < 3; i++) {
+            base[standGroup[i]].writeMicroseconds(1500);
+            elbow[standGroup[i]].writeMicroseconds(1500);
+        }
 
-    // elbows out
-    elbow1.writeMicroseconds(1700);
-    elbow3.writeMicroseconds(1700);
-    elbow5.writeMicroseconds(1300);
-    delay(200);
+        // lift shoulder group
+        for (int i = 0; i < 3; i++) {
+            commandShoulder(liftGroup[i], 1.0);
+        }
+        delay(step_delay_ms);
 
-    // shoulders down
-    shoulder1.writeMicroseconds(1700);
-    shoulder3.writeMicroseconds(1700);
-    shoulder5.writeMicroseconds(1300);
-    delay(200);
+        // bases forward
+        for (int i = 0; i < 3; i++) {
+            commandBase(liftGroup[i], -strideProjection(liftGroup[i], direction, spin) * speed);
+        }
+        delay(step_delay_ms);
 
-    // elbows in, other elbows out, pull
-    elbow1.writeMicroseconds(1500);
-    elbow3.writeMicroseconds(1500);
-    elbow5.writeMicroseconds(1500);
+        // plant shoulders
+        for (int i = 0; i < 3; i++) {
+            commandShoulder(liftGroup[i], -0.3);
+        }
+        delay(step_delay_ms);
 
-    elbow2.writeMicroseconds(1000);
-    elbow4.writeMicroseconds(2000);
-    elbow6.writeMicroseconds(2000);
-    delay(200);
-
-    // *** second trio ***
-    
-    // shoulders up (and reset elbows other shoulders)
-    elbow2.writeMicroseconds(1500);
-    elbow4.writeMicroseconds(1500);
-    elbow6.writeMicroseconds(1500);
-
-    shoulder1.writeMicroseconds(1500);
-    shoulder3.writeMicroseconds(1500);
-    shoulder5.writeMicroseconds(1500);
-
-    shoulder2.writeMicroseconds(1300);
-    shoulder4.writeMicroseconds(1700);
-    shoulder6.writeMicroseconds(1700);
-    delay(200);
-
-    // elbows out
-    elbow2.writeMicroseconds(1700);
-    elbow4.writeMicroseconds(1300);
-    elbow6.writeMicroseconds(1300);
-    delay(200);
-
-    // shoulders down
-    shoulder2.writeMicroseconds(1700);
-    shoulder4.writeMicroseconds(1300);
-    shoulder6.writeMicroseconds(1300);
-    delay(200);
-
-    // elbows in, other elbows out, pull
-    elbow2.writeMicroseconds(1500);
-    elbow4.writeMicroseconds(1500);
-    elbow6.writeMicroseconds(1500);
-
-    elbow1.writeMicroseconds(1000);
-    elbow3.writeMicroseconds(1000);
-    elbow5.writeMicroseconds(2000);
-    delay(200);
+        // pull bases back
+        for (int i = 0; i < 3; i++) {
+            commandBase(liftGroup[i], strideProjection(liftGroup[i], direction, spin) * speed);
+        }
+        delay(step_delay_ms);
+    }
 }
 
 unsigned long start;
@@ -332,59 +195,48 @@ void setup() {
     digitalWrite(servoPowerEnableGroup2, HIGH);
     //pinMode(LED_BUILTIN, OUTPUT);
 
-    base1.attach(22);
-    base2.attach(25);
-    base3.attach(28);
-    base4.attach(39);
-    base5.attach(36);
-    base6.attach(33);
+    for (int i = 1; i <= 6; i++) {
+        base[i].attach(base_pins[i]);
+        shoulder[i].attach(shoulder_pins[i]);
+        elbow[i].attach(elbow_pins[i]);
+    }
 
-    shoulder1.attach(23);
-    shoulder2.attach(26);
-    shoulder3.attach(29);
-    shoulder4.attach(38);
-    shoulder5.attach(35);
-    shoulder6.attach(32);
+    homeAll();
+    delay(1000);
 
-    elbow1.attach(24);
-    elbow2.attach(27);
-    elbow3.attach(30);
-    elbow4.attach(37);
-    elbow5.attach(34);
-    elbow6.attach(31);
-
-    start = millis();
+    Serial.begin(9600);
+    Serial.println(F("Instructions: Send direction in degrees from -179 to 180. Send optional spin/speed as such: spin/speed:x where x is a float. To stop, send 'stop'."));
 }
 
 void loop() {
-    unsigned long now = millis();
-    /*if (now - start > 25000) {
-        //wave();
-    } else if (now - start > 15000) {
-        //strafeRight();
-    } else */if (now - start > 5000) {
-        strafeRight();
-    } else {
-        base1.writeMicroseconds(1500);
-        base2.writeMicroseconds(1500);
-        base3.writeMicroseconds(1500);
-        base4.writeMicroseconds(1500);
-        base5.writeMicroseconds(1500);
-        base6.writeMicroseconds(1500);
-        
-        shoulder1.writeMicroseconds(1500);
-        shoulder2.writeMicroseconds(1500);
-        shoulder3.writeMicroseconds(1500);
-        shoulder4.writeMicroseconds(1500);
-        shoulder5.writeMicroseconds(1500);
-        shoulder6.writeMicroseconds(1500);
+    if (Serial.available()) {
+        String line = Serial.readStringUntil("\n");
+        line.trim();
+        if (line.length() > 0) {
+            if (line.equalsIgnoreCase("stop")) {
+                speed = 0.0;
+            } else if (line.startsWith("spin:")) {
+                spin = line.substring(5).toFloat();
+            } else if (line.startsWith("scale:")) {
+                speed = line.substring(6).toFloat();
+            } else {
+                direction = line.toFloat();
+                speed = 1.0;
+            }
+            Serial.print(F("Direction: "));
+            Serial.print(direction);
+            Serial.print(F(", Spin: "));
+            Serial.print(spin);
+            Serial.print(F(", Speed: "));
+            Serial.println(speed);
+        }
+    }
 
-        elbow1.writeMicroseconds(1500);
-        elbow2.writeMicroseconds(1500);
-        elbow3.writeMicroseconds(1500);
-        elbow4.writeMicroseconds(1500);
-        elbow5.writeMicroseconds(1500);
-        elbow6.writeMicroseconds(1500);
+    if (speed > 0.001) {
+        walkDirection(direction, spin, speed);
+    } else {
+        homeAll();
+        delay(200);
     }
 }
 ```
