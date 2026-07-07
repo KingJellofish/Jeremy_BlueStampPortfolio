@@ -1,5 +1,5 @@
 # Hexapod
-My project is a six-legged contraption that uses servos to move around. The legs have multiple joints using a total of 18 servos. In the future, it will have a camera/ultrasonic sensor, a speaker, and an LED display for facial expressions, as well as the ability to remotely control it.
+My project is a six-legged contraption that uses servos to move around. The legs have multiple joints using a total of 18 servos. These work in conjunction with each other using inverse kinematics to calculate where to position them to most effectively walk in a direction. It can be commanded wirelessly using a remote control equipped with a joystick, potentiometers, and a few buttons. The hexapod will be equipped with a USB webcam and a Raspberry Pi capable of image processing to provide live feedback, in addition to a microphone to listen for human input. To express itself, it will also include an LED display and a speaker for live responses to stimuli.
 
 | **Engineer** | **School** | **Area of Interest** | **Grade** |
 |:--:|:--:|:--:|:--:|
