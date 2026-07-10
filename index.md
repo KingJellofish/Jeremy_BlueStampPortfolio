@@ -54,90 +54,100 @@ Here's where you'll put images of your schematics. [Tinkercad](https://www.tinke
 <!--
 Here's where you'll put your code. The syntax below places it into a block of code. Follow the guide [here]([url](https://www.markdownguide.org/extended-syntax/)) to learn how to customize it to your project needs. 
 -->
-
+Hexapod Code
 ```c++
 #ifndef ARDUINO_AVR_MEGA2560
 #error Wrong board. Please choose "Arduino/Genuino Mega or Mega 2560"
 #endif
 
+// libraries
 #include <Servo.h>
+#include <SoftwareSerial.h>
 #include <math.h>
 
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
+
+// radio for remote control, address same as the one acknolwedged in code on remote control
+RF24 radio(9, 53); // CE, CSN
+const byte address[6] = "00001";
+
+// list of Servo objects for all 18 servos (plus a blank one for easy numbering)
 Servo base[7];
 Servo shoulder[7];
 Servo elbow[7];
 
+// servo power enable pins (built-in)
 const int servoPowerEnableGroup1 = A15;
 const int servoPowerEnableGroup2 = A14;
 
+// servo pins
 const int base_pins[7] = {0, 22, 25, 28, 39, 36, 33};
 const int shoulder_pins[7] = {0, 23, 26, 29, 38, 35, 32};
 const int elbow_pins[7] = {0, 24, 27, 30, 37, 34, 31};
 
-const int group1[3] = {1, 3, 5};
-const int group2[3] = {2, 4, 6};
-
-const int legMountAngle[7] = {0, 34, 6, -25, 147, 176, -150};
-const int base_sign[7] = {0, 1, 1, 1, -1, -1, -1};
-
+// the microsecond value of each servo's home position (1472 according to angle mapping)
 const int base_angle_us = 1500;
-const int base_swing_us = 200;
 const int shoulder_angle_us = 1500;
-const int shoulder_swing_us = 200;
 const int elbow_angle_us = 1500;
-const int elbow_swing_us = 200;
 
-const int step_delay_ms = 100;
+// joystick values
+double joystickX = 0.0;
+double joystickY = 0.0;
+int joystickZ = 0;
 
-float direction = 0.0;
-float spin = 0.0;
-float speed = 0.0;
+// where the robot wants to move
+double direction = 0.0;
+// how fast the legs move
+double speed = 0.0;
+// how far the leg goes to move
+double maxStride = 0.3;
+// how high the leg goes in z when returning to step again
+const double returnLiftHeight = 0.5;
+// how low into the ground the desired z should be when pushing
+const double z_depression = 0.5;
 
-int findClosestAngle(int mountAngle, int targetAngle) {
-    return mountAngle + ((targetAngle - mountAngle) > 180 ? 360 : 0);
+// phase used to keep track of which tripod to be pushing and which to be swinging
+double phase = 0.0;
+// max amount of time incremented per loop
+double maxDt = 0.02;
+
+// length of first joint
+const double b = 55.0 / 70.0;
+// length of second joint
+const double c = 1.0;
+
+// angles at which each leg is mounted relative to the horizontal (measured in degrees)
+const int legMountAngle[7] = {0, 34, 6, -25, 147, 176, -150};
+
+// each leg's home position in xyz space
+const double base_x[7] = {0.0, b * cos(radians(legMountAngle[1])), b * cos(radians(legMountAngle[2])), b * cos(radians(legMountAngle[3])), b * cos(radians(legMountAngle[4])), b * cos(radians(legMountAngle[5])), b * cos(radians(legMountAngle[6]))};
+const double base_y[7] = {0.0, b * sin(radians(legMountAngle[1])), b * sin(radians(legMountAngle[2])), b * sin(radians(legMountAngle[3])), b * sin(radians(legMountAngle[4])), b * sin(radians(legMountAngle[5])), b * sin(radians(legMountAngle[6]))};
+const double base_z[7] = {0.0, -c, -c, -c, -c, -c, -c};
+
+// only used in forward kinematics calculations {
+double theta_base[7] = {legMountAngle[0], legMountAngle[1], legMountAngle[2], legMountAngle[3], legMountAngle[4], legMountAngle[5], legMountAngle[6]};
+double theta_shoulder[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+double theta_elbow[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+double x_from_thetas(int legIndex) {
+    return cos(theta_base[legIndex]) * (b * cos(theta_shoulder[legIndex]) + c * sin(theta_shoulder[legIndex] + theta_elbow[legIndex]));
+}
+double y_from_thetas(int legIndex) {
+    return sin(theta_base[legIndex]) * (b * cos(theta_shoulder[legIndex]) + c * sin(theta_shoulder[legIndex] + theta_elbow[legIndex]));
+}
+double z_from_thetas(int legIndex) {
+    return b * sin(theta_shoulder[legIndex]) - c * cos(theta_shoulder[legIndex] + theta_elbow[legIndex]);
+}
+//}
+
+// helper function for mapping radians to a pulse width
+double mapThetaToUs(double theta) {
+    return (theta / PI) * (2400 - 544) + 544;
 }
 
-float strideProjection(int legIndex, float direction, float spin) {
-    int theta = radians(direction);
-    int mount = radians(findClosestAngle(legMountAngle[legIndex], (int) direction));
-
-    // unit vector for direction of travel
-    float dx = cos(theta);
-    float dy = sin(theta);
-
-    // tangent unit vector to leg pivot
-    float tx = -sin(mount);
-    float ty = cos(mount);
-
-    // dot product to project tangent vector onto stride vector
-    float displacement_deci = dx * tx + dy * ty;
-
-    // add optional spin for turning while walking
-    return displacement_deci + spin;
-}
-
-void commandBase(int legIndex, float normalizedProjection) {
-    normalizedProjection = constrain(normalizedProjection, -1.5, 1.5); // to allow for spin
-    int us = base_angle_us + (int) (base_sign[legIndex] * normalizedProjection * base_swing_us);
-    base[legIndex].writeMicroseconds(us);
-}
-
-void commandShoulder(int legIndex, float normalizedProjection) {
-    normalizedProjection = constrain(normalizedProjection, -1.0, 1.0);
-    int us = shoulder_angle_us + (int) (normalizedProjection * shoulder_swing_us);
-    shoulder[legIndex].writeMicroseconds(us);
-}
-/*
-void commandElbow(int legIndex, float normalizedProjection) {
-    normalizedProjection = constrain(normalizedProjection, -1.0, 1.0);
-    int us = elbow_angle_us + (int) (normalizedProjection * elbow_swing_us);
-    elbow[legIndex].writeMicroseconds(us);
-}
-*/
-void commandElbow(int legIndex) {
-    elbow[legIndex].writeMicroseconds(elbow_angle_us);
-}
-
+// used to put all legs at their home position
 void homeAll() {
     for (int i = 1; i <= 6; i++) {
         base[i].writeMicroseconds(base_angle_us);
@@ -146,48 +156,77 @@ void homeAll() {
     }
 }
 
-void walkDirection(float direction, float spin, float speed) {
-    const int* liftGroup;
-    const int* standGroup;
+// a data type to store the 3 angles for a given leg
+struct LegThetas {
+    double base;
+    double shoulder;
+    double elbow;
+};
 
-    for (int group = 0; group < 2; group++) {
-        liftGroup = (group == 0) ? group1 : group2;
-        standGroup = (group == 0) ? group2 : group1;
+// inverse kinematics function that takes a desired point in xyz and returns appropriate angles for each a leg's servos
+LegThetas calculateLegThetas(int legIndex, double desired_x, double desired_y, double desired_z);
+LegThetas calculateLegThetas(int legIndex, double desired_x, double desired_y, double desired_z) {
+    LegThetas result;
+    double x = desired_x;
+    double y = desired_y;
+    double z = desired_z;
 
-        // reset previous group (no delay)
-        for (int i = 0; i < 3; i++) {
-            base[standGroup[i]].writeMicroseconds(1500);
-            elbow[standGroup[i]].writeMicroseconds(1500);
-        }
+    result.base = atan2(y, x);
 
-        // lift shoulder group
-        for (int i = 0; i < 3; i++) {
-            commandShoulder(liftGroup[i], 1.0);
-        }
-        delay(step_delay_ms);
+    double r = sqrt(x * x + y * y);
+    double d = sqrt(r * r + z * z);
+    double alpha = atan2(z, r);
+    double C = acos(constrain((b * b + d * d - c * c) / (2 * b * d), -1.0, 1.0));
+    result.shoulder = alpha + C;
 
-        // bases forward
-        for (int i = 0; i < 3; i++) {
-            commandBase(liftGroup[i], -strideProjection(liftGroup[i], direction, spin) * speed);
-        }
-        delay(step_delay_ms);
+    double D = acos(constrain((b * b + c * c - d * d) / (2 * b * c), -1.0, 1.0));
+    result.elbow = D - PI / 2;
 
-        // plant shoulders
-        for (int i = 0; i < 3; i++) {
-            commandShoulder(liftGroup[i], -0.3);
-        }
-        delay(step_delay_ms);
+    return result;
+}
 
-        // pull bases back
-        for (int i = 0; i < 3; i++) {
-            commandBase(liftGroup[i], strideProjection(liftGroup[i], direction, spin) * speed);
-        }
-        delay(step_delay_ms);
+// function that commands a leg's servos to their intended angles
+void writeLeg(int legIndex, LegThetas t);
+void writeLeg(int legIndex, LegThetas t) {
+    if (legIndex < 4) {
+        base[legIndex].writeMicroseconds(mapThetaToUs(t.base + PI / 2));
+        shoulder[legIndex].writeMicroseconds(mapThetaToUs(t.shoulder + PI / 2));
+        elbow[legIndex].writeMicroseconds(mapThetaToUs(PI - (t.elbow + PI / 2)));
+    } else {
+        base[legIndex].writeMicroseconds(mapThetaToUs(PI - (t.base + PI / 2)));
+        shoulder[legIndex].writeMicroseconds(mapThetaToUs(PI - (t.shoulder + PI / 2)));
+        elbow[legIndex].writeMicroseconds(mapThetaToUs(t.elbow + PI / 2));
     }
 }
 
-unsigned long start;
+// main walking algorithm
+void walkDirection(double direction, double phase, double stride) {
+    double x, y, z, time, offset;
+    bool stance;
+    LegThetas t;
+    for (int i = 1; i <= 6; i++) {
+        // phase < 0.5: ground/pushing stage for tripod1, lifting stage for tripod2
+        // phase >= 0.5: ground/pushing stage for tripod2, lifting stage for tripod1
+        stance = (phase < 0.5);
+        time = stance ? (phase / 0.5) : ((phase - 0.5) / 0.5);
+        
+        if ((i % 2 == 1) != stance) { // swing back
+            offset = stride * (2.0 * time - 1.0);
+            z = base_z[i] + returnLiftHeight * sin(PI * time) - z_depression;
+        } else { // stand and push
+            offset = stride * (1.0 - 2.0 * time);
+            z = base_z[i] - z_depression;
+        }
 
+        x = base_x[i] + offset * cos(direction);
+        y = base_y[i] + offset * sin(direction);
+
+        t = calculateLegThetas(i, x, y, z);
+        writeLeg(i, t);
+    }
+}
+
+// setup (called once)
 void setup() {
     pinMode(servoPowerEnableGroup1, OUTPUT);
     digitalWrite(servoPowerEnableGroup1, HIGH);
@@ -205,39 +244,465 @@ void setup() {
     delay(1000);
 
     Serial.begin(9600);
-    Serial.println(F("Instructions: Send direction in degrees from -179 to 180. Send optional spin/speed as such: spin/speed:x where x is a float. To stop, send 'stop'."));
+
+    while (!Serial) {
+        ;
+    }
+
+    radio.begin();
+    radio.openReadingPipe(0, address);
+    radio.setPALevel(RF24_PA_MIN);
+    radio.startListening();
+    //port.begin(115200);
 }
 
+// loop (iterated over and over)
 void loop() {
-    if (Serial.available()) {
-        String line = Serial.readStringUntil("\n");
-        line.trim();
-        if (line.length() > 0) {
-            if (line.equalsIgnoreCase("stop")) {
-                speed = 0.0;
-            } else if (line.startsWith("spin:")) {
-                spin = line.substring(5).toFloat();
-            } else if (line.startsWith("scale:")) {
-                speed = line.substring(6).toFloat();
-            } else {
-                direction = line.toFloat();
+    if (radio.available()) {
+        char text[16] = "";
+        radio.read(&text, sizeof(text));
+        String line = String(text);
+        line.trim(); //removes white space from joystick input
+        Serial.println(line);
+        
+        int separatorIndex = line.indexOf(":");
+        if (separatorIndex != -1) {
+            String label = line.substring(0, separatorIndex);
+            int value = line.substring(separatorIndex + 1).toInt();
+
+            if (label.equals("joystickX")) {
+                joystickX = value;
                 speed = 1.0;
+                Serial.println(joystickX);
+            } else if (label.equals("joystickY")) {
+                joystickY = value;
+                speed = 1.0;
+                Serial.println(joystickY);
+            } else if (label.equals("joystickZ")) {
+                //joystickZ = value;
+                speed = 0;
+                Serial.println(speed);
             }
-            Serial.print(F("Direction: "));
-            Serial.print(direction);
-            Serial.print(F(", Spin: "));
-            Serial.print(spin);
-            Serial.print(F(", Speed: "));
-            Serial.println(speed);
+
+            /*
+            if (label.equals("joystickX") || label.equals("joystickY")) {
+                speed = constrain(hypot(joystickX - 512, joystickY - 512) / 512.0, 0.0, 1.0);
+            }
+            */
         }
     }
 
     if (speed > 0.001) {
-        walkDirection(direction, spin, speed);
+        direction = atan2(joystickY - 512, joystickX - 512);
+
+        walkDirection(direction, phase, maxStride * speed);
+
+        Serial.print("attempted walking: ");
+        Serial.println(direction);
     } else {
         homeAll();
         delay(200);
     }
+
+    phase += maxDt * speed;
+    if (phase >= 1.0) {
+        phase -= 1.0;
+    }
+    Serial.print("phase: ");
+    Serial.println(phase);
+}
+```
+
+Remote Control Code
+```c++
+/*
+ * Sketch     Self diagnosis sketch for Remote
+ * Platform   Freenove Smart Car Remote (Compatible with Arduino Uno) with 
+ *            Freenove Smart Car Remote Shield and Freenove Control Board
+ * Brief      This sketch is used to diagnose the remote after it has been assembled.
+ *            If your remote is not working properly, follow the steps below to diagnose and fix.
+ * Steps      1. Install NRF24L01 module to the remote.
+ *            2. Connect remote to computer via USB cable and choose the right board and port.
+ *               Then open Serial Moniter with baud 115200.
+ *            4. Upolad this sketch to the remote.
+ *               The Serial Moniter will show diagnostic information. 
+ *               Operate the remote and the Serial Moniter will show relevant information.
+ *            5. Please check the diagnostic information and try to fix the problem.
+ *               Then press the RESET button to run this sketch again to see if the problem has been fixed.
+ *               If yes, please upload the default sketch again to verify if the remote is working properly.
+ *               If no or you can't fix the problem, please send diagnostic information and how did the 
+ *               remote behave to our support team (support@freenove.com).
+ * Author     Ethan Pan @ Freenove (support@freenove.com)
+ * Date       2021/01/15
+ * Version    V12.0
+ * Copyright  Copyright © Freenove (http://www.freenove.com)
+ * License    Creative Commons Attribution ShareAlike 3.0
+ *            (http://creativecommons.org/licenses/by-sa/3.0/legalcode)
+ * -----------------------------------------------------------------------------------------------*/
+
+#ifndef ARDUINO_AVR_UNO
+#error Wrong board. Please choose "Arduino Uno"
+#endif
+
+#include <SPI.h>
+#include "RF24.h"
+#include <FlexiTimer2.h>
+
+RF24 radio = RF24(9, 10);
+
+const byte address[6] = "00001";
+
+bool resetX = false;
+bool resetY = false;
+
+enum InputPin { Pot1, Pot2, JoystickX, JoystickY, JoystickZ, S1, S2, S3, None };
+
+const int pot1Pin = A0,         // define POT1
+          pot2Pin = A1,         // define POT2
+          joystickXPin = A2,    // define pin for direction X of joystick
+          joystickYPin = A3,    // define pin for direction Y of joystick
+          joystickZPin = 7,     // define pin for direction Z of joystick
+          s1Pin = 4,            // define pin for S1
+          s2Pin = 3,            // define pin for S2
+          s3Pin = 2,            // define pin for S3
+          led1Pin = 6,          // define pin for LED1 which is close to POT1 and used to indicate the state of POT1
+          led2Pin = 5,          // define pin for LED2 which is close to POT2 and used to indicate the state of POT2
+          led3Pin = 8;          // define pin for LED3 which is close to NRF24L01 and used to indicate the state of NRF24L01
+
+volatile int ledState = 1;
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("");
+  Serial.println("");
+  Serial.println("Freenove Smart Car Remote Shield and Freenove Control Board");
+  Serial.println("------------------------------------------------------------------------------------------");
+
+  pinMode(joystickZPin, INPUT);
+  pinMode(s1Pin, INPUT);
+  pinMode(s2Pin, INPUT);
+  pinMode(s2Pin, INPUT);
+  pinMode(led1Pin, OUTPUT);
+  pinMode(led2Pin, OUTPUT);
+  pinMode(led3Pin, OUTPUT);
+
+  FlexiTimer2::set(200, UpdateService);
+  FlexiTimer2::start();
+
+  pinMode(12, INPUT_PULLUP);
+  
+  radio.begin();
+  radio.openWritingPipe(address);
+  radio.setPALevel(RF24_PA_MIN);
+  radio.stopListening();
+
+  Serial.println("------------------------------------------------------------------------------------------");
+  Serial.println("Please start to operate the remote...");
+}
+
+void loop() {
+  int pot1Value = analogRead(pot1Pin);
+  int pot2Value = analogRead(pot2Pin);
+  int joystickXValue = analogRead(joystickXPin);
+  int joystickYValue = analogRead(joystickYPin);
+  bool joystickZValue = digitalRead(joystickZPin);
+  bool s1Value = digitalRead(s1Pin);
+  bool s2Value = digitalRead(s2Pin);
+  bool s3Value = digitalRead(s3Pin);
+
+  static int pot1ValueBefore = pot1Value;
+  static int pot2ValueBefore = pot2Value;
+  static int joystickXValueBefore = joystickXValue;
+  static int joystickYValueBefore = joystickYValue;
+  static bool joystickZValueBefore = joystickZValue;
+  static bool s1ValueBefore = s1Value;
+  static bool s2ValueBefore = s2Value;
+  static bool s3ValueBefore = s3Value;
+
+  static InputPin inputPin = InputPin::None;
+  static InputPin inputPinBefore = inputPin;
+
+  static int printCounter = 0;
+  const int maxPrintCount = 15;
+
+  const int potIgnoredLength = 8;
+
+  if(abs(pot1Value - pot1ValueBefore) > potIgnoredLength) {
+    /*
+    if(inputPin != InputPin::Pot1) {
+      inputPin = InputPin::Pot1;
+      Serial.println("");
+      Serial.print("Pot1: ");
+    }
+    pot1ValueBefore = pot1Value;
+    Serial.print(pot1Value);
+    Serial.print(", ");
+    printCounter++;
+    */
+    pot1ValueBefore = pot1Value;
+
+    char text[16];
+    snprintf(text, sizeof(text), "pot1Value:%d", pot1Value);
+    radio.write(&text, sizeof(text));
+    Serial.print("pot1: ");
+    Serial.println(pot1Value);
+    delay(50);
+  }
+
+  if(abs(pot2Value - pot2ValueBefore) > potIgnoredLength) {
+    /*
+    if(inputPin != InputPin::Pot2) {
+      inputPin = InputPin::Pot2;
+      Serial.println("");
+      Serial.print("Pot2: ");
+    }
+    pot2ValueBefore = pot2Value;
+    Serial.print(pot2Value);
+    Serial.print(", ");
+    printCounter++;
+    */
+    pot2ValueBefore = pot2Value;
+
+    char text[16];
+    snprintf(text, sizeof(text), "pot2Value:%d", pot2Value);
+    radio.write(&text, sizeof(text));
+    Serial.print("pot2: ");
+    Serial.println(pot2Value);
+    delay(50);
+  }
+
+  if(abs(joystickXValue - joystickXValueBefore) > potIgnoredLength) {
+    /*
+    if(inputPin != InputPin::JoystickX) {
+      inputPin = InputPin::JoystickX;
+      Serial.println("");
+      Serial.print("JoystickX: ");
+    }
+    joystickXValueBefore = joystickXValue;
+    Serial.print(joystickXValue);
+    Serial.print(", ");
+    printCounter++;
+    */
+    joystickXValueBefore = joystickXValue;
+
+    char text[16];
+    snprintf(text, sizeof(text), "joystickX:%d", joystickXValue);
+    radio.write(&text, sizeof(text));
+
+    Serial.print("x: ");
+    Serial.println(joystickXValue);
+
+    resetX = false;
+
+    delay(50);
+  } else {
+    if (!resetX) {
+      joystickYValueBefore = joystickYValue;
+
+      char text[16];
+      snprintf(text, sizeof(text), "joystickX:%d", 512);
+      radio.write(&text, sizeof(text));
+
+      Serial.println("x: 512");
+
+      resetX = true;
+
+      delay(50);
+    }
+  }
+
+  if(abs(joystickYValue - joystickYValueBefore) > potIgnoredLength) {
+    /*
+    if(inputPin != InputPin::JoystickY) {
+      inputPin = InputPin::JoystickY;
+      Serial.println("");
+      Serial.print("JoystickY: ");
+    }
+    joystickYValueBefore = joystickYValue;
+    Serial.print(joystickYValue);
+    Serial.print(", ");
+    printCounter++;
+    */
+    joystickYValueBefore = joystickYValue;
+
+    char text[16];
+    snprintf(text, sizeof(text), "joystickY:%d", joystickYValue);
+    radio.write(&text, sizeof(text));
+
+    Serial.print("y: ");
+    Serial.println(joystickYValue);
+
+    resetY = false;
+
+    delay(50);
+  } else {
+    if (!resetY) {
+      joystickYValueBefore = joystickYValue;
+
+      char text[16];
+      snprintf(text, sizeof(text), "joystickY:%d", 512);
+      radio.write(&text, sizeof(text));
+
+      Serial.println("y: 512");
+
+      resetY = true;
+
+      delay(50);
+    }
+  }
+
+  if(joystickZValue != joystickZValueBefore) {
+    delay(10);
+    /*
+    if(joystickZValue != joystickZValueBefore) {
+      if(inputPin != InputPin::JoystickZ) {
+        inputPin = InputPin::JoystickZ;
+        Serial.println("");
+        Serial.print("JoystickZ: ");
+      }
+      joystickZValueBefore = joystickZValue;
+      Serial.print(joystickZValue);
+      Serial.print(", ");
+      printCounter++;
+    }
+    */
+    joystickZValueBefore = joystickZValue;
+
+    char text[16];
+    snprintf(text, sizeof(text), "joystickZ:%d", joystickZValue);
+    radio.write(&text, sizeof(text));
+    Serial.print("z: ");
+    Serial.println(joystickZValue);
+    delay(50);
+  }
+
+  if(s1Value != s1ValueBefore) {
+    delay(10);
+    /*
+    if(s1Value != s1ValueBefore) {
+      if(inputPin != InputPin::S1) {
+        inputPin = InputPin::S1;
+        Serial.println("");
+        Serial.print("S1: ");
+      }
+      s1ValueBefore = s1Value;
+      Serial.print(s1Value);
+      Serial.print(", ");
+      printCounter++;
+    }
+    */
+    s1ValueBefore = s1Value;
+
+    char text[16];
+    snprintf(text, sizeof(text), "s1Value:%d", s1Value);
+    radio.write(&text, sizeof(text));
+    Serial.print("s1: ");
+    Serial.println(s1Value);
+    delay(50);
+  }
+
+  if(s2Value != s2ValueBefore) {
+    delay(10);
+    /*
+    if(s2Value != s2ValueBefore) {
+      if(inputPin != InputPin::S2) {
+        inputPin = InputPin::S2;
+        Serial.println("");
+        Serial.print("S2: ");
+      }
+      s2ValueBefore = s2Value;
+      Serial.print(s2Value);
+      Serial.print(", ");
+      printCounter++;
+    }
+    */
+    s2ValueBefore = s2Value;
+
+    char text[16];
+    snprintf(text, sizeof(text), "s2Value:%d", s2Value);
+    radio.write(&text, sizeof(text));
+    Serial.print("s2: ");
+    Serial.println(s2Value);
+    delay(50);
+  }
+
+  if(s3Value != s3ValueBefore) {
+    delay(10);
+    /*
+    if(s3Value != s3ValueBefore) {
+      if(inputPin != InputPin::S3) {
+        inputPin = InputPin::S3;
+        Serial.println("");
+        Serial.print("S3: ");
+      }
+      s3ValueBefore = s3Value;
+      Serial.print(s3Value);
+      Serial.print(", ");
+      printCounter++;
+    }
+    */
+    s3ValueBefore = s3Value;
+
+    char text[16];
+    snprintf(text, sizeof(text), "s3Value:%d", s3Value);
+    radio.write(&text, sizeof(text));
+    Serial.print("s3: ");
+    Serial.println(s3Value);
+    delay(50);
+  }
+
+  /*
+  if(inputPin != inputPinBefore) {
+    printCounter = 0;
+  }
+  inputPinBefore = inputPin;
+  
+  if(printCounter >= maxPrintCount) {
+    Serial.println("");
+    Serial.print("    ");
+    printCounter = 0;
+  }
+  */
+
+  analogWrite(led1Pin, map(analogRead(pot1Pin), 0, 1023, 0, 255));
+  analogWrite(led2Pin, map(analogRead(pot2Pin), 0, 1023, 0, 255));
+}
+
+
+void UpdateService()
+{
+  sei();
+
+  UpdateStateLED();
+}
+
+void UpdateStateLED()
+{
+  const static int stepLength = 2;
+  const static int intervalSteps = 3;
+  static int ledState = ::ledState;
+  static int counter = 0;
+
+  if (counter / stepLength < abs(ledState))
+  {
+    if (counter % stepLength == 0)
+      SetStateLed(ledState > 0 ? HIGH : LOW);
+    else if (counter % stepLength == stepLength / 2)
+      SetStateLed(ledState > 0 ? LOW : HIGH);
+  }
+
+  counter++;
+
+  if (counter / stepLength >= abs(ledState) + intervalSteps)
+  {
+    ledState = ::ledState;
+    counter = 0;
+  }
+}
+
+void SetStateLed(bool state)
+{
+  digitalWrite(led3Pin, state);
 }
 ```
 
