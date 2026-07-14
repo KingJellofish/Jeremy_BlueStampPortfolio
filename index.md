@@ -18,16 +18,15 @@ For your final milestone, explain the outcome of your project. Key details to in
 
 
 # Second Milestone
-<!--
-**Don't forget to replace the text below with the embedding for your milestone video. Go to Youtube, click Share -> Embed, and copy and paste the code to replace what's below.**
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/AKbBMT0cKrQ?si=8zjm9QAUEI72863R" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+My second milestone was enabling the hexapod to walk in any direction. After two weeks of calculations, I've successfully created adjustable settings to customize the gait, including speed, stride, direction, and how much each leg sinks into the floor while walking.
 
-For your second milestone, explain what you've worked on since your previous milestone. You can highlight:
-- Technical details of what you've accomplished and how they contribute to the final goal
-- What has been surprising about the project so far
-- Previous challenges you faced that you overcame
-- What needs to be completed before your final milestone 
--->
+At first, I tried driving each leg based on its potential to do work in the direction of movement. I did this by calculating the dot product of the direction vector with each base servo's direction of movement, as well as each elbow servo's (they are perpendicular, which made me assume that I could achieve any direction). This proved quite ineffective, most likely because each servo traced an arc on the ground rather than a linear path for the most direct push.
+
+After that, I pivoted to real 3 DOF inverse kinematics. Using the law of cosines, I derived each servo's angle in radians based on a point in (x,y,z) space. With this relationship, I could simply request a point in space for the tip of the leg to be at, and by mapping pulse widths in microseconds to a 0-180 degree (0-PI/2 radians) range, each servo would adjust to the correct angle to position the tip of the leg at the desired point. Then, I used linear interpolation to continuously drive each servo in the opposite direction of movement, so that they would push in that direction. When they are not pushing, they return to the start position in a sinusoidal motion.
+
+[Add more here]
 
 # First Milestone
 
