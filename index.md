@@ -710,9 +710,12 @@ void SetStateLed(bool state)
 
 | **Part** | **Note** | **Price** | **Link** |
 |:--:|:--:|:--:|:--:|
-| Freenove Hexapod Robot Kit | Base materials and electronics | $126.99 | <a href="[https://www.amazon.com/Arduino-A000066-ARDUINO-UNO-R3/dp/B008GRTSV6/](https://store.freenove.com/products/fnk0031)"> Link </a> |
-| Mod 1 | Fun | $??? | <a href="https://www.amazon.com/Arduino-A000066-ARDUINO-UNO-R3/dp/B008GRTSV6/"> Link </a> |
-| Mod 2 | Fun | $??? | <a href="https://www.amazon.com/Arduino-A000066-ARDUINO-UNO-R3/dp/B008GRTSV6/"> Link </a> |
+| Freenove Hexapod Robot Kit | Base materials and electronics | $126.99 | <a href="https://store.freenove.com/products/fnk0031"> Link </a> |
+| Raspberry Pi 4 Model B | Compute platform that supports live image processing and provides more computation power than the Arduino alone | $89.29 | <a href="https://www.amazon.com/Raspberry-Pi-Model-2GB/dp/B09TTNPB4J"> Link </a> |
+| Raspberry Pi OV5647 Camera Module | For receiving visual input | $22.99 | <a href="https://www.amazon.com/HiLetgo-OV5647-Camera-Module-Raspberry/dp/B01D1D0DJ0"> Link </a> |
+| USB microphone | For receiving audio input | $22.99 | <a href="https://www.amazon.com/Microphone-MAONO-Omnidirectional-Microphone-Recording-Broadcasting/dp/B074BLM973"> Link </a> |
+| USB speaker | The main response to anything the camera sees or microphone hears | $13.99 | <a href="https://www.amazon.com/HONKYOB-Speaker-Computer-Multimedia-Notebook/dp/B075M7FHM1"> Link </a> |
+| LED display | Secondary response mechanism | $??? | <a href=""> Link </a> |
 
 <!--
 # Other Resources/Examples
