@@ -59,9 +59,7 @@ I hope to add a camera and a Raspberry Pi processor that can send commands to th
 I built the Retro Arcade Console as my starter project. I soldered most of the components to the board besides the microcontroller, like the electrolytic capacitor, the LED grid and score displays, the power switch, and the buttons.
 
 # Schematics
-<!--
-Here's where you'll put images of your schematics. [Tinkercad](https://www.tinkercad.com/blog/official-guide-to-tinkercad-circuits) and [Fritzing](https://fritzing.org/learning/) are both great resoruces to create professional schematic diagrams, though BSE recommends Tinkercad becuase it can be done easily and for free in the browser. 
--->
+![Raspberry Pi connections to camera servo and Arduino](rpi_to_servo_and_arduino.jpeg)
 
 # Code
 <!--
