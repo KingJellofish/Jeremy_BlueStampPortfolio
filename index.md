@@ -5,7 +5,7 @@ My project is a six-legged contraption that uses servos to move around. The legs
 |:--:|:--:|:--:|:--:|
 | Jeremy P | Oakwood School | Electrical Engineering | Incoming Senior
 
-![Headstone Image](Jeremy P.heic)
+![Headstone Image](jeremy_headshot.heic)
 
 # Modifications
 
@@ -60,6 +60,9 @@ I built the Retro Arcade Console as my starter project. I soldered most of the c
 
 # Schematics
 ![Raspberry Pi connections to camera servo and Arduino](rpi_to_servo_and_arduino.jpeg)
+![Arduino power](arduino_power.jpeg)
+![Raspberry Pi power](rpi_power.jpeg)
+![Cad models](cad.jpeg)
 
 # Code
 <!--
