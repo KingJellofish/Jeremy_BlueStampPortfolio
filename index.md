@@ -1410,18 +1410,10 @@ if __name__ == "__main__":
 # Useful Resources
 
 These are some tutorials and resources that I found really helpful for getting started in the Arduino IDE, navigating the Raspberry Pi through the command line interface or VNC viewer, and solving other issues. To connect to my Raspberry Pi over the WiFi, I used an application called TigerVNC which is compatible with macOS.
-- [Example 1](https://spellfoundry.com/docs/copying-files-to-and-from-raspberry-pi-and-mac/)
-- [Example 2](https://sourceforge.net/projects/tigervnc/)
-- [Example 3](https://roboticsbackend.com/raspberry-pi-master-arduino-slave-i2c-communication-with-wiringpi/)
-- [Example 4](https://www.elprocus.com/raspberry-pi-4-model-b/)
-- [Example 5](https://randomnerdtutorials.com/raspberry-pi-pwm-python/)
-- [Example 6](https://docs.arduino.cc/learn/electronics/servo-motors/)
-<!--
-# Other Resources/Examples
-One of the best parts about Github is that you can view how other people set up their own work. Here are some past BSE portfolios that are awesome examples. You can view how they set up their portfolio, and you can view their index.md files to understand how they implemented different portfolio components.
-- [Example 1](https://trashytuber.github.io/YimingJiaBlueStamp/)
-- [Example 2](https://sviatil0.github.io/Sviatoslav_BSE/)
-- [Example 3](https://arneshkumar.github.io/arneshbluestamp/)
+- [SCP tutorial](https://spellfoundry.com/docs/copying-files-to-and-from-raspberry-pi-and-mac/)
+- [TigerVNC download](https://sourceforge.net/projects/tigervnc/)
+- [Arduino and Raspberry Pi I2C communication](https://roboticsbackend.com/raspberry-pi-master-arduino-slave-i2c-communication-with-wiringpi/)
+- [Raspberry Pi 4 Model B pinout](https://www.elprocus.com/raspberry-pi-4-model-b/)
+- [Fading LED tutorial using PWM on Raspberry Pi](https://randomnerdtutorials.com/raspberry-pi-pwm-python/)
+- [Arduino servo guide](https://docs.arduino.cc/learn/electronics/servo-motors/)
 
-To watch the BSE tutorial on how to create a portfolio, click here.
--->
