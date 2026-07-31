@@ -5,7 +5,7 @@ My project is a six-legged contraption that uses servos to move around. The legs
 |:--:|:--:|:--:|:--:|
 | Jeremy P | Oakwood School | Electrical Engineering | Incoming Senior
 
-![Headstone Image](jeremy_headshot.heic)
+![Headstone Image](jeremy_headshot.jpeg)
 
 # Modifications
 
